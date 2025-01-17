@@ -30,16 +30,19 @@ public class Pathfinding extends Command {
         Constants.AlgaeCoralStand.kStands,
         () -> Commands.runOnce(() -> System.out.println("Hello World")),
         Constants.Priorities.kIntakeCoral,
+        true,
         () -> !Constants.Conditions.hasAlgae() && !Constants.Conditions.hasCoral()),
     BRANCHES(
         Constants.Pegs.kPegs,
         () -> Commands.runOnce(() -> System.out.println("Hello World")),
         Constants.Priorities.kShootCoralL4,
+        true,
         () -> Constants.Conditions.hasCoral()),
     FEEDERS(
         Constants.Feeders.kFeeders,
         () -> Commands.runOnce(() -> System.out.println("Hello World")),
         Constants.Priorities.kShootCoralL4,
+        false,
         () -> Constants.Conditions.hasCoral()),
     PROCESSOR(
         10.0,
@@ -47,6 +50,7 @@ public class Pathfinding extends Command {
         180.0,
         () -> Commands.runOnce(() -> System.out.println("Hello World")),
         Constants.Priorities.kShootingProcessor,
+        false,
         () -> Constants.Conditions.hasAlgae()),
     NET(
         7.734,
@@ -54,6 +58,7 @@ public class Pathfinding extends Command {
         180.0,
         () -> Commands.runOnce(() -> System.out.println("Hello World")),
         Constants.Priorities.kShootNet,
+        false,
         () -> Constants.Conditions.hasAlgae());
 
     private Rotation2d angle;
@@ -62,6 +67,8 @@ public class Pathfinding extends Command {
     private BooleanSupplier[] conditions;
     private ArrayList<Pose2d> positionsList = new ArrayList<>();
     private int priority;
+    private boolean consumable;
+    private List<Pose2d> consumedPOI = new ArrayList<>();
 
     /**
      * constructor stocking all the data we need per poi in variables
@@ -78,12 +85,14 @@ public class Pathfinding extends Command {
         double angle,
         Supplier<Command> event,
         int priority,
+        boolean consumable,
         BooleanSupplier... removeCondition) {
       this.event = event;
       this.conditions = removeCondition;
       this.angle = new Rotation2d(angle);
       this.xy_coordinates = new Translation2d(x_coordinates, y_coordinates);
       this.priority = priority;
+      this.consumable = consumable;
     }
 
     /**
@@ -99,25 +108,32 @@ public class Pathfinding extends Command {
         double angle,
         Supplier<Command> event,
         int priority,
+        boolean consumable,
         BooleanSupplier... removeCondition) {
       this.xy_coordinates = xy_coordinates;
       this.angle = new Rotation2d(angle);
       this.conditions = removeCondition;
       this.event = event;
       this.priority = priority;
+      this.consumable = consumable;
     }
 
     private POI(
         Pose2d[] xyThetacoordinates,
         Supplier<Command> event,
         int priority,
+        boolean consumable,
         BooleanSupplier... removeCondition) {
+      this.consumable = consumable;
       for (Pose2d coordinate : xyThetacoordinates) {
         this.positionsList.add(coordinate);
       }
-      // gets the closest peg from the robot
+
+      // gets the closest poi from the robot
       Pose2d pose =
           positionsList.parallelStream()
+          // filters pois we already went to
+              .filter((poseHead) -> consumedPOI.contains(poseHead))
               .sorted(
                   (pose1, pose2) -> {
                     if (pose1
@@ -132,6 +148,9 @@ public class Pathfinding extends Command {
               .findFirst()
               .get();
 
+      if (consumable) {
+        consumedPOI.add(pose);
+      }
       this.xy_coordinates = pose.getTranslation();
       this.angle = pose.getRotation();
       this.conditions = removeCondition;
