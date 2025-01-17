@@ -133,7 +133,7 @@ public class Pathfinding extends Command {
       Pose2d pose =
           positionsList.parallelStream()
           // filters pois we already went to
-              .filter((poseHead) -> consumedPOI.contains(poseHead))
+              .filter((poseHead) -> !consumedPOI.contains(poseHead))
               .sorted(
                   (pose1, pose2) -> {
                     if (pose1
